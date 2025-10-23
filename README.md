@@ -134,30 +134,40 @@ Fetched 10,000+ open issues in 100+ pages
 
 Checking deleted files against open issues...
 
-⚠️  Out-of-sync issues (test deleted but issue still open):
+⚠️  Out-of-sync issues (ALL files deleted but issue still open):
 
   • Issue #98765: tests/crashes/98765.rs deleted in PR #147900 (commit abc12345, 2024-03-15)
     Issue: https://github.com/rust-lang/rust/issues/98765
     PR: https://github.com/rust-lang/rust/pull/147900
 
-  • Issue #98766: tests/crashes/98766.rs deleted in PR #147901 (commit def56789, 2024-04-20)
+  • Issue #98766: 2 files deleted (98766-1.rs, 98766-2.rs)
     Issue: https://github.com/rust-lang/rust/issues/98766
     PR: https://github.com/rust-lang/rust/pull/147901
 
+ℹ️  Partial cleanup (some files deleted, others remain):
+
+  • Issue #99123: 1 file(s) deleted, 2 remain
+    Deleted: 99123-1.rs
+    Issue: https://github.com/rust-lang/rust/issues/99123
+
 ─────────────────────────────────────────────────
-Summary:
-  Total deleted tests: 245
+Statistics:
+  Total crash test files deleted: 248
+  Files with open issues: 4 (1.6%)
+  Files with closed issues: 244 (98.4%)
+
   Total open issues in rust-lang/rust: 10,000+
 
-  ⚠️  Issues still open: 2 (0.8%)
-  ✅ Issues properly closed: 243 (99.2%)
+  Issues fully cleaned up: 243
+  Issues needing attention: 2
+  Issues with partial cleanup: 1
 ─────────────────────────────────────────────────
 
-⚠️  Found 2 out-of-sync issue(s) that need attention.
+⚠️  Found 2 issue(s) that need attention.
 
 These issues should either:
-  1. Be reopened (if the crash test was removed by mistake)
-  2. Be closed (if the issue is actually fixed)
+  1. Be closed (if the issue is actually fixed)
+  2. Have tests restored (if removed by mistake)
 ```
 
 ## How It Works
@@ -165,12 +175,15 @@ These issues should either:
 1. **Git History Scan**: Walks through commit history (optionally filtered by date)
 2. **Deletion Detection**: Identifies commits that deleted files from `tests/crashes/`
 3. **Issue Extraction**: Parses filenames to extract issue numbers (e.g., `12345.rs` → issue #12345)
-4. **Load/Fetch Open Issues**:
+4. **Current File Scan**: Lists all currently existing crash test files
+5. **Load/Fetch Open Issues**:
    - **First run**: Fetches ALL open issues via ~100 paginated API requests, saves to `.cache/`
    - **Subsequent runs**: Loads from cache (instant, 0 API calls)
    - **Manual refresh**: Use `--refresh-cache` flag to update cache
-5. **Fast Lookup**: Checks each deleted file against the HashSet of open issues (O(1) lookup, no API calls!)
-6. **Report Generation**: Displays out-of-sync issues with commit details
+6. **Categorization**: Groups deleted files by issue and checks if any files remain:
+   - **Fully deleted**: All files for an issue are gone → check if issue is still open
+   - **Partially deleted**: Some files remain → informational only (issue should be open)
+7. **Report Generation**: Three-section report with actionable items and statistics
 
 ## API Rate Limits
 

@@ -129,31 +129,87 @@ async fn main() -> Result<()> {
         issues
     };
 
-    // Check each deleted file against the open issues set
-    let mut out_of_sync = Vec::new();
-    let mut synced = Vec::new();
+    // Get current crash test files to detect partial deletions
+    let current_files = git::get_current_crash_test_files(&args.repo_path)
+        .context("Failed to scan current crash test files")?;
+
+    // Group deleted files by issue number
+    let mut files_by_issue: std::collections::HashMap<u64, Vec<&git::DeletedCrashTest>> =
+        std::collections::HashMap::new();
+    for file in &deleted_files {
+        files_by_issue
+            .entry(file.issue_number)
+            .or_insert_with(Vec::new)
+            .push(file);
+    }
+
+    // Categorize issues
+    let mut fully_deleted_out_of_sync = Vec::new();
+    let mut fully_deleted_synced = Vec::new();
+    let mut partially_deleted = Vec::new();
+    let mut files_with_open_issues = 0;
+    let mut files_with_closed_issues = 0;
 
     println!("Checking deleted files against open issues...");
-    for file in &deleted_files {
-        if open_issues.contains(&file.issue_number) {
-            // Issue is still open - this is out of sync!
-            if args.verbose {
-                println!("  ⚠️  Issue #{} is still OPEN", file.issue_number);
+    for (issue_number, files) in files_by_issue {
+        // Count how many files for this issue still exist
+        let remaining_count = current_files.iter().filter(|filename| {
+            // Extract issue number from current filename
+            if let Some(current_issue) = git::extract_issue_number_from_filename(filename) {
+                current_issue == issue_number
+            } else {
+                false
             }
-            out_of_sync.push(file.clone());
+        }).count();
+
+        // Count files for statistics
+        let file_count = files.len();
+        if open_issues.contains(&issue_number) {
+            files_with_open_issues += file_count;
         } else {
-            // Issue is closed or doesn't exist - this is expected
+            files_with_closed_issues += file_count;
+        }
+
+        if remaining_count > 0 {
+            // Partial deletion - some files remain
+            partially_deleted.push((issue_number, files, remaining_count));
             if args.verbose {
-                println!("  ✅ Issue #{} is closed", file.issue_number);
+                println!(
+                    "  ℹ️  Issue #{}: {} file(s) deleted, {} remain",
+                    issue_number,
+                    file_count,
+                    remaining_count
+                );
             }
-            synced.push(file.clone());
+        } else {
+            // Full deletion - all files for this issue are gone
+            if open_issues.contains(&issue_number) {
+                // Issue is still open - this is out of sync!
+                if args.verbose {
+                    println!("  ⚠️  Issue #{} is still OPEN (all files deleted)", issue_number);
+                }
+                fully_deleted_out_of_sync.push((issue_number, files));
+            } else {
+                // Issue is closed or doesn't exist - this is expected
+                if args.verbose {
+                    println!("  ✅ Issue #{} is closed (all files deleted)", issue_number);
+                }
+                fully_deleted_synced.push((issue_number, files));
+            }
         }
     }
 
     println!();
 
     // Generate report
-    report::print_report(&out_of_sync, &synced, open_issues.len());
+    report::print_report(
+        &fully_deleted_out_of_sync,
+        &fully_deleted_synced,
+        &partially_deleted,
+        files_with_open_issues,
+        files_with_closed_issues,
+        open_issues.len(),
+    );
 
     Ok(())
 }

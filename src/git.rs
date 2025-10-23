@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use chrono::NaiveDate;
 use git2::{Delta, DiffOptions, Repository};
+use std::collections::HashSet;
 use std::path::Path;
 
 #[derive(Debug, Clone)]
@@ -125,12 +126,41 @@ pub fn scan_deleted_crash_tests(
     Ok(deleted_files)
 }
 
-/// Extract issue number from crash test filename
+/// Get current crash test files in the repository
+/// Returns a HashSet of filenames (without path) that currently exist
+pub fn get_current_crash_test_files(repo_path: &Path) -> Result<HashSet<String>> {
+    let crashes_dir = repo_path.join("tests/crashes");
+    let mut current_files = HashSet::new();
+
+    if !crashes_dir.exists() {
+        return Ok(current_files);
+    }
+
+    for entry in std::fs::read_dir(&crashes_dir)
+        .context("Failed to read tests/crashes directory")?
+    {
+        let entry = entry.context("Failed to read directory entry")?;
+        let path = entry.path();
+
+        if path.is_file() {
+            if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
+                if filename.ends_with(".rs") {
+                    current_files.insert(filename.to_string());
+                }
+            }
+        }
+    }
+
+    Ok(current_files)
+}
+
+/// Extract issue number from crash test filename or path
 /// Examples:
 /// - "tests/crashes/12345.rs" -> Some(12345)
-/// - "tests/crashes/12345-foo.rs" -> Some(12345)
-/// - "tests/crashes/foo.rs" -> None
-fn extract_issue_number(path: &str) -> Option<u64> {
+/// - "12345.rs" -> Some(12345)
+/// - "12345-foo.rs" -> Some(12345)
+/// - "foo.rs" -> None
+pub fn extract_issue_number_from_filename(path: &str) -> Option<u64> {
     let filename = Path::new(path)
         .file_stem()?
         .to_str()?;
@@ -148,6 +178,11 @@ fn extract_issue_number(path: &str) -> Option<u64> {
     }
 
     None
+}
+
+/// Extract issue number from crash test filename (internal use)
+fn extract_issue_number(path: &str) -> Option<u64> {
+    extract_issue_number_from_filename(path)
 }
 
 /// Extract PR number from commit message
