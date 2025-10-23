@@ -11,7 +11,7 @@ The Rust project maintains crash test files in `tests/crashes/` that are linked 
 
 ## Features
 
-- **Optimized Performance**: Fetches all open issues once (~50 API requests) instead of checking each file individually
+- **Optimized Performance**: Fetches all open issues once (~100 API requests) instead of checking each file individually
 - Scans git history for deleted files in `tests/crashes/`
 - Supports date range filtering
 - Identifies out-of-sync issues with zero additional API calls
@@ -92,7 +92,7 @@ The tool automatically caches open issues to `.cache/open_issues.json` to speed 
 ```bash
 ./target/release/rust-crash-audit ../rust --from 2024-10-15 --verbose
 # → Fetching open issues... (~2 minutes)
-# → Cached 11631 open issues
+# → Cached 10,000+ open issues
 ```
 
 **Subsequent runs - loads from cache (instant!):**
@@ -108,7 +108,7 @@ The tool automatically caches open issues to `.cache/open_issues.json` to speed 
 ./target/release/rust-crash-audit ../rust --from 2024-10-15 --refresh-cache --verbose
 # → Refreshing cache...
 # → Fetching open issues... (~2 minutes)
-# → Cached 11631 open issues
+# → Cached 10,000+ open issues
 ```
 
 **Clear cache manually:**
@@ -128,9 +128,9 @@ Fetching open issues from rust-lang/rust...
   Fetched page 1 (100 issues, 100 total so far)
   Fetched page 2 (100 issues, 200 total so far)
   ...
-  Fetched page 52 (78 issues, 5178 total so far)
+  Fetched page 100 (50 issues, 10,000+ total so far)
 
-Fetched 5178 open issues in 52 pages
+Fetched 10,000+ open issues in 100+ pages
 
 Checking deleted files against open issues...
 
@@ -145,7 +145,7 @@ Checking deleted files against open issues...
 ─────────────────────────────────────────────────
 Summary:
   Total deleted tests: 245
-  Total open issues in rust-lang/rust: 5178
+  Total open issues in rust-lang/rust: 10,000+
 
   ⚠️  Issues still open: 2 (0.8%)
   ✅ Issues properly closed: 243 (99.2%)
@@ -158,47 +158,28 @@ These issues should either:
   2. Be closed (if the issue is actually fixed)
 ```
 
-## How It Works (Optimized Approach)
+## How It Works
 
 1. **Git History Scan**: Walks through commit history (optionally filtered by date)
 2. **Deletion Detection**: Identifies commits that deleted files from `tests/crashes/`
 3. **Issue Extraction**: Parses filenames to extract issue numbers (e.g., `12345.rs` → issue #12345)
 4. **Load/Fetch Open Issues**:
-   - **First run**: Fetches ALL open issues via ~117 paginated API requests, saves to `.cache/`
+   - **First run**: Fetches ALL open issues via ~100 paginated API requests, saves to `.cache/`
    - **Subsequent runs**: Loads from cache (instant, 0 API calls)
    - **Manual refresh**: Use `--refresh-cache` flag to update cache
 5. **Fast Lookup**: Checks each deleted file against the HashSet of open issues (O(1) lookup, no API calls!)
 6. **Report Generation**: Displays out-of-sync issues with commit details
 
-### Why This Is Fast
-
-**Old Approach (naive):**
-- 2,200 deleted files × 1 API request each = 2,200 API requests
-- Would take hours with rate limiting
-- No caching - repeats same API calls every run
-
-**New Approach (optimized with caching):**
-- **First run**: ~117 API requests to fetch all open issues (~2-3 minutes)
-- **Subsequent runs**: 0 API requests (uses cache, instant!)
-- 0 additional requests for checking (uses local HashSet with O(1) lookup)
-- **98% reduction in API calls!**
-- **100% reduction on cached runs!**
-
 ## API Rate Limits
 
 ### Without Authentication (60 requests/hour)
-- Can still complete scans with ~50 requests
-- May need to wait if running multiple times per hour
+- May not be sufficient (~100 requests needed)
+- Consider using authentication for reliable operation
 
 ### With Authentication (5,000 requests/hour)
 - Recommended for frequent use
 - No rate limit concerns for normal usage
 - Faster execution
-
-### API Usage Breakdown
-- Fetching all open issues: ~50 requests (rust-lang/rust has ~5,000 open issues)
-- Checking deleted files: 0 requests (uses local HashSet)
-- **Total: ~50 requests per run**
 
 ## Testing
 
@@ -226,23 +207,3 @@ cargo run -- ./rust --from 2024-01-01 --verbose
 - Git repository with history
 - Internet connection (for GitHub API calls)
 - Optional: GitHub personal access token for higher rate limits
-
-## Performance
-
-**First run (no cache):**
-- Git scan: 10-30 seconds (depends on date range)
-- Fetch open issues: ~2 minutes (~117 API requests for ~11,631 issues)
-- Check deleted files: <1 second (local HashSet lookup)
-- **Total: ~2-3 minutes**
-
-**Subsequent runs (with cache):**
-- Git scan: 10-30 seconds (depends on date range)
-- Load cached issues: <1 second (reads from `.cache/open_issues.json`)
-- Check deleted files: <1 second (local HashSet lookup)
-- **Total: ~15-35 seconds**
-
-**Performance improvement with cache: ~5-10x faster!**
-
-## License
-
-MIT
