@@ -12,17 +12,41 @@ pub fn print_report(
         println!("⚠️  Out-of-sync issues (test deleted but issue still open):");
         println!();
         for file in out_of_sync {
-            println!(
-                "  • Issue #{}: {} deleted in {} ({})",
-                file.issue_number,
-                file.file_path,
-                &file.commit_sha[..8],
-                file.commit_date
-            );
-            println!(
-                "    https://github.com/rust-lang/rust/issues/{}",
-                file.issue_number
-            );
+            // Show PR and commit info
+            if let Some(pr_number) = file.pr_number {
+                println!(
+                    "  • Issue #{}: {} deleted in PR #{} (commit {}, {})",
+                    file.issue_number,
+                    file.file_path,
+                    pr_number,
+                    &file.commit_sha[..8],
+                    file.commit_date
+                );
+                println!(
+                    "    Issue: https://github.com/rust-lang/rust/issues/{}",
+                    file.issue_number
+                );
+                println!(
+                    "    PR: https://github.com/rust-lang/rust/pull/{}",
+                    pr_number
+                );
+            } else {
+                println!(
+                    "  • Issue #{}: {} deleted in commit {} ({})",
+                    file.issue_number,
+                    file.file_path,
+                    &file.commit_sha[..8],
+                    file.commit_date
+                );
+                println!(
+                    "    Issue: https://github.com/rust-lang/rust/issues/{}",
+                    file.issue_number
+                );
+                println!(
+                    "    Commit: https://github.com/rust-lang/rust/commit/{}",
+                    file.commit_sha
+                );
+            }
             println!();
         }
     }

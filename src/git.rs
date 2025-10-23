@@ -9,6 +9,7 @@ pub struct DeletedCrashTest {
     pub issue_number: u64,
     pub commit_sha: String,
     pub commit_date: String,
+    pub pr_number: Option<u64>,
 }
 
 /// Scan git history for deleted crash test files
@@ -99,11 +100,16 @@ pub fn scan_deleted_crash_tests(
 
                     // Extract issue number from filename
                     if let Some(issue_number) = extract_issue_number(&path_str) {
+                        // Extract PR number from commit message
+                        let commit_message = commit.message().unwrap_or("");
+                        let pr_number = extract_pr_number(commit_message);
+
                         deleted_files.push(DeletedCrashTest {
                             file_path: path_str.to_string(),
                             issue_number,
                             commit_sha: commit.id().to_string(),
                             commit_date: commit_date.to_string(),
+                            pr_number,
                         });
                     }
                 }
@@ -144,6 +150,29 @@ fn extract_issue_number(path: &str) -> Option<u64> {
     None
 }
 
+/// Extract PR number from commit message
+/// Rust bors commits follow the pattern: "Auto merge of #12345 - ..."
+/// Examples:
+/// - "Auto merge of #147900 - Zalathar:rollup-ril6jsi, r=Zalathar" -> Some(147900)
+/// - "Regular commit message" -> None
+fn extract_pr_number(message: &str) -> Option<u64> {
+    // Look for "Auto merge of #" followed by digits
+    let prefix = "Auto merge of #";
+    if let Some(start) = message.find(prefix) {
+        let number_start = start + prefix.len();
+        let rest = &message[number_start..];
+
+        // Extract digits until we hit a non-digit character
+        let number_str: String = rest.chars()
+            .take_while(|c| c.is_ascii_digit())
+            .collect();
+
+        return number_str.parse::<u64>().ok();
+    }
+
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -155,5 +184,25 @@ mod tests {
         assert_eq!(extract_issue_number("tests/crashes/98765-bar-baz.rs"), Some(98765));
         assert_eq!(extract_issue_number("tests/crashes/foo.rs"), None);
         assert_eq!(extract_issue_number("tests/crashes/foo-12345.rs"), None);
+    }
+
+    #[test]
+    fn test_extract_pr_number() {
+        assert_eq!(
+            extract_pr_number("Auto merge of #147900 - Zalathar:rollup-ril6jsi, r=Zalathar"),
+            Some(147900)
+        );
+        assert_eq!(
+            extract_pr_number("Auto merge of #12345 - username:branch, r=reviewer"),
+            Some(12345)
+        );
+        assert_eq!(
+            extract_pr_number("Regular commit message without PR"),
+            None
+        );
+        assert_eq!(
+            extract_pr_number("Mention #12345 but not auto merge"),
+            None
+        );
     }
 }

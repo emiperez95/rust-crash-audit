@@ -136,11 +136,13 @@ Checking deleted files against open issues...
 
 ⚠️  Out-of-sync issues (test deleted but issue still open):
 
-  • Issue #98765: tests/crashes/98765.rs deleted in abc12345 (2024-03-15)
-    https://github.com/rust-lang/rust/issues/98765
+  • Issue #98765: tests/crashes/98765.rs deleted in PR #147900 (commit abc12345, 2024-03-15)
+    Issue: https://github.com/rust-lang/rust/issues/98765
+    PR: https://github.com/rust-lang/rust/pull/147900
 
-  • Issue #98766: tests/crashes/98766.rs deleted in def56789 (2024-04-20)
-    https://github.com/rust-lang/rust/issues/98766
+  • Issue #98766: tests/crashes/98766.rs deleted in PR #147901 (commit def56789, 2024-04-20)
+    Issue: https://github.com/rust-lang/rust/issues/98766
+    PR: https://github.com/rust-lang/rust/pull/147901
 
 ─────────────────────────────────────────────────
 Summary:
