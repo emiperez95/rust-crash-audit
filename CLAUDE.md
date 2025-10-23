@@ -159,35 +159,18 @@ struct CachedIssues {
 ## Repository Structure
 
 ```
-rust-repo-helpers/
-├── rust-crash-audit/          # Main CLI tool
-│   ├── src/
-│   │   ├── main.rs           # Entry point and orchestration
-│   │   ├── git.rs            # Git operations
-│   │   ├── github.rs         # GitHub API client
-│   │   ├── cache.rs          # Caching system
-│   │   └── report.rs         # Report formatting
-│   ├── Cargo.toml
-│   └── README.md             # Detailed usage documentation
-├── rust/                      # Test clone of rust-lang/rust (gitignored)
-├── test-rust-small/          # Small test repository (gitignored)
-├── APPROACHES.md             # Design considerations and alternatives
-├── DEPLOYMENT_OPTIONS.md     # Deployment strategies (GitHub Actions, etc.)
+rust-crash-audit/
+├── src/
+│   ├── main.rs           # Entry point and orchestration
+│   ├── git.rs            # Git operations
+│   ├── github.rs         # GitHub API client
+│   ├── cache.rs          # Caching system
+│   └── report.rs         # Report formatting
+├── Cargo.toml
+├── README.md             # Detailed usage documentation
+├── CLAUDE.md             # This file
 └── .gitignore
 ```
-
-## Important Context
-
-- **APPROACHES.md**: Documents two approaches considered for this problem:
-  1. Triagebot integration (proactive PR comments)
-  2. Standalone audit tool (retrospective scanning) - **chosen approach**
-
-- **DEPLOYMENT_OPTIONS.md**: Explores automation options for running the tool monthly:
-  - GitHub Actions (recommended)
-  - Triagebot integration
-  - Standalone service
-  - Local cron job
-  - Manual execution
 
 ## Dependencies
 
