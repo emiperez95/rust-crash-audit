@@ -107,22 +107,29 @@ The codebase is organized into focused modules (see `rust-crash-audit/src/`):
    - Identifies deleted files matching `tests/crashes/*.rs`
    - Extracts issue numbers from filenames (e.g., `12345.rs` → issue #12345)
 
-2. **Issue Data Loading** (`github.rs` + `cache.rs`):
-   - **First run**: Fetches all open issues via GitHub API (~117 requests for ~11,631 issues)
+2. **Current File Scan** (`git.rs`):
+   - Scans `tests/crashes/` directory to get all currently existing files
+   - Used to detect partial vs full deletions for multi-file issues
+
+3. **Issue Data Loading** (`github.rs` + `cache.rs`):
+   - **First run**: Fetches all open issues via GitHub API (~100 requests for ~10,000+ issues)
    - **Subsequent runs**: Loads from `.cache/open_issues.json` (instant, 0 API calls)
    - Stores issues in a `HashSet<u64>` for O(1) lookup
    - Cache includes timestamp and can be manually refreshed with `--refresh-cache`
 
-3. **Synchronization Check** (`main.rs`):
-   - For each deleted crash test file:
-     - Check if issue number exists in open issues set
-     - If yes: Out of sync (issue should be closed or test restored)
-     - If no: Properly synced (issue is already closed)
+4. **Multi-File Issue Handling** (`main.rs`):
+   - Groups deleted files by issue number (handles cases like `12345-1.rs`, `12345-2.rs`)
+   - For each issue, checks if ANY files still exist in the repository
+   - Categorizes as:
+     - **Fully deleted**: All files for issue gone → check if issue is still open
+     - **Partially deleted**: Some files remain → informational only (issue should be open)
+   - Counts files with open vs closed issues for statistics
 
-4. **Report Generation** (`report.rs`):
-   - Lists out-of-sync issues with commit details
-   - Shows statistics (percentage closed vs open)
-   - Provides actionable recommendations
+5. **Report Generation** (`report.rs`):
+   - **Section 1**: Out-of-sync issues (fully deleted but still open) - actionable
+   - **Section 2**: Partial cleanup (some deleted, others remain) - informational
+   - **Section 3**: Statistics with file counts, issue counts, and percentages
+   - Shows PR links, commit details, and remaining file counts
 
 ### Performance Optimizations
 
@@ -134,8 +141,13 @@ The codebase is organized into focused modules (see `rust-crash-audit/src/`):
 **GitHub API**:
 - Batch fetching (100 issues per page)
 - Local caching eliminates redundant API calls
-- ~98% reduction in API requests vs naive approach (50 vs 2,200 requests)
+- ~95% reduction in API requests vs naive approach (100 vs 2,000+ requests)
 - Caching provides ~5-10x speedup on subsequent runs
+
+**Multi-File Detection**:
+- Single directory scan to get current files
+- HashSet lookups for O(1) issue number matching
+- Groups deleted files to avoid duplicate processing
 
 ### Key Data Structures
 
