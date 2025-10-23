@@ -1,6 +1,5 @@
 # Rust
 /target/
-Cargo.lock
 
 # Test repository (rust-lang/rust clone for testing)
 /rust/
